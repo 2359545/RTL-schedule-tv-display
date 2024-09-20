@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horaires Bus Ligne 8</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .schedule-board {
+            background-color: #f0f0f0;
+            border: 2px solid #000;
+            border-radius: 0;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .schedule-entry {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #000;
+            background-color: #e0e0e0;
+            font-size: 2em;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="schedule-board">
+        <h1>Horaires - Ligne 8</h1>
+        <div id="schedule">Chargement...</div>
+    </div>
+
+    <script>
+        async function fetchSchedule() {
+            try {
+                const response = await fetch('http://localhost:3000/bus-schedule');
+                if (!response.ok) throw new Error('Erreur réseau');
+
+                const data = await response.json();
+                const scheduleDiv = document.getElementById('schedule');
+                scheduleDiv.innerHTML = '';
+
+                const scheduleEntries = [];
+                const currentTime = new Date();
+
+                data.forEach(entity => {
+                    if (entity.tripUpdate && entity.tripUpdate.trip.routeId === "8") {
+                        const startTime = entity.tripUpdate.trip.startTime;
+                        entity.tripUpdate.stopTimeUpdate.forEach(stop => {
+                            if (stop.stopId === "3413") {
+                                const arrivalTime = calculateTime(startTime, stop.arrival.delay);
+                                if (arrivalTime >= currentTime) {
+                                    scheduleEntries.push(arrivalTime);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                scheduleEntries.sort((a, b) => a - b);
+                for (let i = 0; i < Math.min(scheduleEntries.length, 5); i++) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'schedule-entry';
+                    messageDiv.textContent = `Ligne 8 - Départ de Longueuil : ${scheduleEntries[i].toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).replace(' AM', 'a.m.').replace(' PM', 'p.m.')}`;
+                    scheduleDiv.appendChild(messageDiv);
+                }
+
+                if (scheduleEntries.length === 0) {
+                    scheduleDiv.textContent = 'Aucun horaire disponible';
+                }
+
+            } catch (error) {
+                console.error('Erreur lors de la récupération des horaires:', error);
+                document.getElementById('schedule').textContent = 'Erreur de chargement';
+            }
+        }
+
+        function calculateTime(startTime, delay) {
+            const [hours, minutes] = startTime.split(':').map(Number);
+            const arrivalDate = new Date();
+            arrivalDate.setHours(hours);
+            arrivalDate.setMinutes(minutes + Math.floor(delay / 60));
+            return arrivalDate;
+        }
+
+        fetchSchedule();
+
+        setInterval(fetchSchedule, 300000);
+    </script>
+
+</body>
+
+</html>
