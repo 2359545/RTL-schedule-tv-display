@@ -69,6 +69,12 @@
             border: 1px solid #000;
             border-radius: 5px;
             background-color: #ffffff;
+            display: none;
+        }
+
+        #preview {
+            margin-top: 20px;
+            display: none;
         }
     </style>
 </head>
@@ -77,7 +83,7 @@
     <div class="schedule-board">
         <h1>Horaires RTL</h1>
 
-        <input type="text" id="routeIdInput" value="" placeholder="Entrer le Route ID" required>
+        <input type="text" id="routeIdInput" placeholder="Entrer les Route IDs (séparés par des virgules)" required>
 
         <input type="text" id="stopIdInput" placeholder="Entrer le Stop ID (facultatif)">
 
@@ -85,9 +91,15 @@
             <option value="">Sélectionner le Stop ID (facultatif)</option>
         </select>
 
-        <button id="fetchStopsButton">Charger les Stops</button>
-        <button id="fetchScheduleButton">Charger l'horaire</button>
-        <div id="schedule">Chargement...</div>
+        <input type="text" id="doorNumberInput" placeholder="Entrer le Numéro de Porte" required>
+
+        <button id="fetchScheduleButton">Prévisualiser l'horaire</button>
+
+        <div id="preview">
+            <h2>Aperçu de l'Horaire</h2>
+            <div id="schedule"></div>
+            <button id="acceptScheduleButton">Accepter l'Horaire</button>
+        </div>
     </div>
 
     <script>
@@ -114,52 +126,97 @@
             }
         }
 
-        async function fetchSchedule(routeId, stopId = '') {
-            try {
-                const url = `http://localhost:3000/bus-schedule/${routeId}${stopId ? '/' + stopId : ''}`;
-                console.log(`Fetching URL: ${url}`);
+        async function fetchMultipleSchedules(routeIds, stopId, doorNumber) {
+            const allSchedules = [];
 
-                const response = await fetch(url);
-                if (!response.ok) {
-                    console.error(`Error fetching data: ${response.status} ${response.statusText}`);
-                    throw new Error('Network error');
+            for (const routeId of routeIds) {
+                try {
+                    const url = `http://localhost:3000/bus-schedule/${routeId}${stopId ? '/' + stopId : ''}`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('Network error');
+
+                    const data = await response.json();
+                    if (data.length === 0) {
+                        allSchedules.push(`Aucun horaire disponible pour la ligne ${routeId}`);
+                        continue;
+                    }
+
+                    data.forEach(entry => {
+                        const arrivalTime = new Date(entry.arrivalTime);
+                        const departureTime = new Date(entry.departureTime);
+                        allSchedules.push(`Ligne ${entry.routeId} - Arrivée à ${entry.stopId}: ${arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })} - Départ à: ${departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`);
+                    });
+
+                } catch (error) {
+                    console.error('Error fetching schedule:', error);
+                    allSchedules.push(`Erreur de chargement pour la ligne ${routeId}`);
                 }
-
-                const data = await response.json();
-                const scheduleDiv = document.getElementById('schedule');
-                scheduleDiv.innerHTML = '';
-
-                if (data.length === 0) {
-                    scheduleDiv.textContent = 'Aucun horaire disponible';
-                    return;
-                }
-
-                data.forEach(entry => {
-                    const arrivalTime = new Date(entry.arrivalTime);
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'schedule-entry';
-                    messageDiv.textContent = `Ligne ${entry.routeId} - Arrivée à Stop ${entry.stopId}: ${arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-                    scheduleDiv.appendChild(messageDiv);
-                });
-
-            } catch (error) {
-                console.error('Error fetching schedule:', error);
-                document.getElementById('schedule').textContent = 'Erreur de chargement';
             }
+
+            displaySchedules(allSchedules);
         }
 
-        document.getElementById('fetchStopsButton').addEventListener('click', () => {
-            const routeIdInput = document.getElementById('routeIdInput').value.trim();
-            fetchStops(routeIdInput);
-        });
+        function displaySchedules(schedules) {
+            const scheduleDiv = document.getElementById('schedule');
+            scheduleDiv.innerHTML = ''; // Clear previous schedule entries
+
+            schedules.forEach(schedule => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'schedule-entry';
+                messageDiv.textContent = schedule;
+                scheduleDiv.appendChild(messageDiv);
+            });
+
+            scheduleDiv.style.display = 'block'; // Show schedule
+            document.getElementById('preview').style.display = 'block'; // Show preview section
+        }
 
         document.getElementById('fetchScheduleButton').addEventListener('click', () => {
             const routeIdInput = document.getElementById('routeIdInput').value.trim();
             const stopIdInput = document.getElementById('stopIdInput').value.trim() || document.getElementById('stopIdDropdown').value.trim();
-            fetchSchedule(routeIdInput, stopIdInput);
+            const doorNumberInput = document.getElementById('doorNumberInput').value.trim();
+
+            if (routeIdInput) {
+                const routeIds = routeIdInput.split(',').map(id => id.trim());
+                fetchMultipleSchedules(routeIds, stopIdInput, doorNumberInput);
+            } else {
+                alert('Veuillez entrer au moins un Route ID valide.');
+            }
         });
 
-        fetchStops('');
+        document.getElementById('acceptScheduleButton').addEventListener('click', () => {
+            const routeIdInput = document.getElementById('routeIdInput').value.trim();
+            const stopIdInput = document.getElementById('stopIdInput').value.trim() || document.getElementById('stopIdDropdown').value.trim();
+            const doorNumberInput = document.getElementById('doorNumberInput').value.trim();
+
+            // Redirect to a new page with the schedule and door number
+            window.location.href = `schedule.html?routeId=${routeIdInput}&stopId=${stopIdInput}&doorNumber=${doorNumberInput}`;
+        });
+
+        // Clear Stop ID input field when dropdown selection changes
+        document.getElementById('stopIdDropdown').addEventListener('change', () => {
+            document.getElementById('stopIdInput').value = ''; // Clear the Stop ID input field
+        });
+
+        // Add an event listener for Route ID input
+        document.getElementById('routeIdInput').addEventListener('input', () => {
+            const routeIdInput = document.getElementById('routeIdInput').value.trim();
+            if (routeIdInput) {
+                fetchStops(routeIdInput.split(',')[0].trim()); // Fetch stops based on the first Route ID
+                document.getElementById('stopIdInput').value = ''; // Clear Stop ID input when Route ID changes
+            }
+        });
+
+        // Clear all fields on page load
+        window.onload = function () {
+            document.getElementById('routeIdInput').value = ''; // Clear Route ID input
+            document.getElementById('stopIdInput').value = ''; // Clear Stop ID input
+            document.getElementById('doorNumberInput').value = ''; // Clear Door Number input
+            document.getElementById('stopIdDropdown').innerHTML = '<option value="">Sélectionner le Stop ID (facultatif)</option>'; // Reset dropdown
+            document.getElementById('schedule').innerHTML = ''; // Reset schedule display
+            document.getElementById('schedule').style.display = 'none'; // Hide schedule display
+            document.getElementById('preview').style.display = 'none'; // Hide preview
+        };
     </script>
 </body>
 

@@ -20,6 +20,12 @@ function calculateTime(startTime, delay) {
     return arrivalDate;
 }
 
+function calculateDepartureTime(arrivalTime, stopDuration) {
+    const departureDate = new Date(arrivalTime);
+    departureDate.setMinutes(departureDate.getMinutes() + stopDuration); // Assuming stopDuration is in minutes
+    return departureDate;
+}
+
 app.get('/bus-schedule/:routeId/:stopId?', async (req, res) => {
     const { routeId, stopId } = req.params;
 
@@ -45,14 +51,16 @@ app.get('/bus-schedule/:routeId/:stopId?', async (req, res) => {
             entity.tripUpdate.stopTimeUpdate.forEach(stop => {
                 const startTime = entity.tripUpdate.trip.startTime;
                 const arrivalTime = calculateTime(startTime, stop.arrival.delay);
+                const stopDuration = stop.departure ? stop.departure.delay : 0; // Assuming you can retrieve this, adjust as needed
+                const departureTime = calculateDepartureTime(arrivalTime, stopDuration);
 
                 if (arrivalTime >= currentTime) {
-
                     if (!stopId || stop.stopId === stopId) {
                         scheduleEntries.push({
                             routeId,
                             stopId: stop.stopId,
-                            arrivalTime
+                            arrivalTime,
+                            departureTime
                         });
                     }
                 }
@@ -98,7 +106,6 @@ app.get('/stops/:routeId', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch stops data' });
     }
 });
-
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
