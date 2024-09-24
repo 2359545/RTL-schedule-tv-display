@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horaires Bus</title>
+    <link rel="shortcut icon" type="image/x-icon" href="images/bus_logo.png" />
+</head>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #121212;
-            /* Dark background */
             color: #fff;
-            /* White text */
             margin: 0;
             height: 100vh;
             display: flex;
@@ -44,11 +44,8 @@
 
         .bus-image {
             width: 70px;
-            /* Adjust width as needed */
             height: auto;
-            /* Maintain aspect ratio */
             margin-right: 20px;
-            /* Space between image and text */
         }
 
         table {
@@ -84,7 +81,7 @@
 
 <body>
     <div class="header">
-        <img src="/public/images/bus_logo.png" alt="Bus" class="bus-image">
+        <img src="./images/bus_logo.png" alt="Bus" class="bus-image">
         <div style="display: flex; align-items: center; margin-right: auto;">
             <div style="margin-right: 10px; font-weight: bold;">
                 Longueuil - Porte <span id="doorNumber"></span>
@@ -104,11 +101,11 @@
         <tbody id="schedule"></tbody>
     </table>
 
-    <div class="footer">Merci de votre attention!</div>
+    <div class="footer">Nouvelles ou Température</div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const routeIds = urlParams.get('routeId').split(',').map(id => id.trim()); // Split and trim route IDs
+        const routeIds = urlParams.get('routeId').split(',').map(id => id.trim());
         const stopId = urlParams.get('stopId');
         const doorNumber = urlParams.get('doorNumber');
 
@@ -122,7 +119,7 @@
 
         async function fetchSchedule() {
             const scheduleBody = document.getElementById('schedule');
-            scheduleBody.innerHTML = ''; // Clear previous schedules
+            scheduleBody.innerHTML = '';
 
             for (const routeId of routeIds) {
                 try {
