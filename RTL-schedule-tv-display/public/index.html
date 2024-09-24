@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horaires RTL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fff;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .schedule-board {
+            background-color: #f0f0f0;
+            border: 2px solid #000;
+            border-radius: 0;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            height: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+
+        .schedule-entry {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #000;
+            background-color: #e0e0e0;
+            font-size: 1.5em;
+        }
+
+        input,
+        select {
+            padding: 10px;
+            font-size: 1.2em;
+            margin: 10px;
+            border: 1px solid #000;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #schedule {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 10px;
+            border: 1px solid #000;
+            border-radius: 5px;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="schedule-board">
+        <h1>Horaires RTL</h1>
+
+        <input type="text" id="routeIdInput" value="" placeholder="Entrer le Route ID" required>
+
+        <input type="text" id="stopIdInput" placeholder="Entrer le Stop ID (facultatif)">
+
+        <select id="stopIdDropdown">
+            <option value="">Sélectionner le Stop ID (facultatif)</option>
+        </select>
+
+        <button id="fetchStopsButton">Charger les Stops</button>
+        <button id="fetchScheduleButton">Charger l'horaire</button>
+        <div id="schedule">Chargement...</div>
+    </div>
+
+    <script>
+        async function fetchStops(routeId) {
+            try {
+                const url = `http://localhost:3000/stops/${routeId}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Network error');
+
+                const stops = await response.json();
+                const stopIdDropdown = document.getElementById('stopIdDropdown');
+
+                stopIdDropdown.innerHTML = '<option value="">Sélectionner le Stop ID (facultatif)</option>';
+
+                stops.forEach(stopId => {
+                    const option = document.createElement('option');
+                    option.value = stopId;
+                    option.textContent = stopId;
+                    stopIdDropdown.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error fetching stops:', error);
+            }
+        }
+
+        async function fetchSchedule(routeId, stopId = '') {
+            try {
+                const url = `http://localhost:3000/bus-schedule/${routeId}${stopId ? '/' + stopId : ''}`;
+                console.log(`Fetching URL: ${url}`);
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.error(`Error fetching data: ${response.status} ${response.statusText}`);
+                    throw new Error('Network error');
+                }
+
+                const data = await response.json();
+                const scheduleDiv = document.getElementById('schedule');
+                scheduleDiv.innerHTML = '';
+
+                if (data.length === 0) {
+                    scheduleDiv.textContent = 'Aucun horaire disponible';
+                    return;
+                }
+
+                data.forEach(entry => {
+                    const arrivalTime = new Date(entry.arrivalTime);
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'schedule-entry';
+                    messageDiv.textContent = `Ligne ${entry.routeId} - Arrivée à Stop ${entry.stopId}: ${arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+                    scheduleDiv.appendChild(messageDiv);
+                });
+
+            } catch (error) {
+                console.error('Error fetching schedule:', error);
+                document.getElementById('schedule').textContent = 'Erreur de chargement';
+            }
+        }
+
+        document.getElementById('fetchStopsButton').addEventListener('click', () => {
+            const routeIdInput = document.getElementById('routeIdInput').value.trim();
+            fetchStops(routeIdInput);
+        });
+
+        document.getElementById('fetchScheduleButton').addEventListener('click', () => {
+            const routeIdInput = document.getElementById('routeIdInput').value.trim();
+            const stopIdInput = document.getElementById('stopIdInput').value.trim() || document.getElementById('stopIdDropdown').value.trim();
+            fetchSchedule(routeIdInput, stopIdInput);
+        });
+
+        fetchStops('');
+    </script>
+</body>
+
+</html>
